@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criador de Aulas Infantis Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f0ece3;
+            --card-base: #1c1a19;
+            --gold-main: #c5a059;
+            --gold-dark: #a67c37;
+            --gold-glow: rgba(197,160,89,0.25);
+            --text-color: #fff;
+            --input-bg: #2e2b28;
+            --surface: #252220;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg-color);
+            background-image: radial-gradient(circle at 20% 20%, rgba(197,160,89,0.07) 0%, transparent 60%),
+                              radial-gradient(circle at 80% 80%, rgba(197,160,89,0.05) 0%, transparent 60%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
+            min-height: 100vh;
+        }
+
+        /* ── API KEY PANEL ── */
+        .api-panel {
+            width: 100%;
+            max-width: 820px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #1e1b18 0%, #252220 100%);
+            border: 1px solid rgba(197,160,89,0.35);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+
+        .api-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .api-panel-header:hover { background: rgba(197,160,89,0.06); }
+
+        .api-panel-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .api-icon-wrap {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, var(--gold-dark), var(--gold-main));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; color: #000;
+            flex-shrink: 0;
+        }
+
+        .api-label { color: var(--gold-main); font-weight: 700; font-size: 14px; letter-spacing: 0.5px; }
+        .api-status { font-size: 11px; color: #888; margin-top: 1px; }
+        .api-status.ok { color: #4caf50; }
+
+        .api-chevron {
+            color: var(--gold-main);
+            transition: transform 0.3s;
+            font-size: 14px;
+        }
+        .api-chevron.open { transform: rotate(180deg); }
+
+        .api-panel-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease, padding 0.3s ease;
+            padding: 0 20px;
+        }
+        .api-panel-body.ativo {
+            max-height: 200px;
+            padding: 0 20px 20px;
+        }
+
+        .api-divider { height: 1px; background: rgba(197,160,89,0.2); margin: 0 20px; }
+
+        .api-hint {
+            font-size: 12px;
+            color: #888;
+            margin: 14px 0 12px;
+            line-height: 1.5;
+        }
+        .api-hint a { color: var(--gold-main); text-decoration: none; }
+
+        .api-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .api-input-wrap {
+            flex: 1;
+            position: relative;
+        }
+
+        .api-input-wrap i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .api-input-wrap input {
+            width: 100%;
+            padding: 11px 40px 11px 36px;
+            background: #141210;
+            border: 1px solid #3a3530;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.5px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            margin: 0;
+        }
+        .api-input-wrap input:focus {
+            outline: none;
+            border-color: var(--gold-main);
+            box-shadow: 0 0 0 3px var(--gold-glow);
+        }
+
+        .api-toggle-vis {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #555;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .api-toggle-vis:hover { color: var(--gold-main); }
+
+        .btn-save-key {
+            padding: 11px 20px;
+            background: linear-gradient(135deg, var(--gold-dark), var(--gold-main));
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s, transform 0.1s;
+            letter-spacing: 0.3px;
+        }
+        .btn-save-key:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-save-key:active { transform: translateY(0); }
+
+        /* ── MAIN CARD ── */
+        .card {
+            background: var(--card-base);
+            padding: 32px 30px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 820px;
+            color: var(--text-color);
+            border: 2px solid rgba(197,160,89,0.5);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(197,160,89,0.08);
+        }
+
+        h1 {
+            color: var(--gold-main);
+            text-align: center;
+            text-transform: uppercase;
+            margin: 0 0 24px;
+            font-size: 22px;
+            letter-spacing: 1.5px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 6px;
+            margin-top: 16px;
+        }
+
+        textarea, select {
+            width: 100%;
+            padding: 13px 14px;
+            border-radius: 10px;
+            border: 1px solid #3a3530;
+            background: var(--input-bg);
+            color: #fff;
+            font-size: 15px;
+            font-family: 'Segoe UI', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            resize: vertical;
+        }
+        textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--gold-main);
+            box-shadow: 0 0 0 3px var(--gold-glow);
+        }
+        select option { background: #1c1a19; }
+
+        .btns {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        button {
+            padding: 13px 12px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 13px;
+            color: white;
+            transition: transform 0.15s, opacity 0.2s;
+            letter-spacing: 0.3px;
+        }
+        button:hover { transform: translateY(-2px); opacity: 0.92; }
+        button:active { transform: translateY(0); }
+
+        .btn-gerar { background: linear-gradient(135deg, var(--gold-dark), var(--gold-main)); color: #000; }
+        .btn-bd    { background: #3a7bd5; }
+        .btn-hist  { background: #4a4540; }
+        .btn-desenhos { background: #e07b00; }
+        .btn-pdf   { background: #2e7d32; }
+
+        #saida {
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(0,0,0,0.25);
+            border-left: 4px solid var(--gold-main);
+            border-radius: 0 10px 10px 0;
+            line-height: 1.7;
+            color: #ddd;
+            min-height: 60px;
+        }
+        #saida h3 { color: var(--gold-main); margin-top: 0; }
+        #saida hr  { border-color: rgba(197,160,89,0.25); }
+
+        /* ── MODAL ── */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 99;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal-inner {
+            max-width: 700px;
+            margin: 0 auto;
+            color: white;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 { margin: 0; color: var(--gold-main); }
+
+        .btn-fechar {
+            background: #c0392b;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .filtros-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .filtros-area input, .filtros-area select {
+            background: #252220;
+            border: 1px solid #3a3530;
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .item-aula {
+            background: #2b2724;
+            border: 1px solid rgba(197,160,89,0.3);
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+        .item-aula:hover { border-color: var(--gold-main); }
+        .item-aula strong { color: #eee; }
+        .item-aula small  { color: #888; }
+
+        /* Toast notification */
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #2e7d32;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 999;
+            pointer-events: none;
+        }
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+<!-- API Key Panel -->
+<div class="api-panel">
+    <div class="api-panel-header" onclick="toggleConfig()" id="api-header">
+        <div class="api-panel-header-left">
+            <div class="api-icon-wrap"><i class="fa-solid fa-key"></i></div>
+            <div>
+                <div class="api-label">CHAVE API — GOOGLE GEMINI</div>
+                <div class="api-status" id="api-status-text">Não configurada</div>
+            </div>
+        </div>
+        <i class="fa-solid fa-chevron-down api-chevron" id="config-seta"></i>
+    </div>
+
+    <div class="api-divider"></div>
+
+    <div class="api-panel-body" id="config-conteudo">
+        <p class="api-hint">
+            Insira sua chave obtida no <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+            Ela fica salva <strong>apenas neste navegador</strong>, nunca é enviada a terceiros.
+        </p>
+        <div class="api-input-row">
+            <div class="api-input-wrap">
+                <i class="fa-solid fa-lock"></i>
+                <input type="password" id="apiKeyInput" placeholder="AIzaSy...">
+                <button class="api-toggle-vis" onclick="toggleVisibilidade()" title="Mostrar/ocultar chave">
+                    <i class="fa-solid fa-eye" id="vis-icon"></i>
+                </button>
+            </div>
+            <button class="btn-save-key" onclick="salvarApiKey()">
+                <i class="fa-solid fa-floppy-disk"></i> Salvar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Main Card -->
+<div class="card">
+    <h1><i class="fa-solid fa-child"></i> Criador de Aulas Infantis</h1>
+
+    <label>Tema da Aula</label>
+    <textarea id="tema" placeholder="Ex: A Arca de Noé, Fruto do Espírito..." rows="2"></textarea>
+
+    <label>Faixa Etária</label>
+    <select id="idade">
+        <option value="Berçário (0-2 anos)">Berçário (0-2 anos)</option>
+        <option value="Maternal (3-4 anos)">Maternal (3-4 anos)</option>
+        <option value="Jardim (5-6 anos)">Jardim (5-6 anos)</option>
+        <option value="Primários (7-9 anos)">Primários (7-9 anos)</option>
+        <option value="Juniores (10-12 anos)">Juniores (10-12 anos)</option>
+    </select>
+
+    <div class="btns">
+        <button class="btn-gerar"    onclick="gerarAula()">    <i class="fa-solid fa-magic"></i> GERAR AULA</button>
+        <button class="btn-bd"       onclick="salvarBD()">     <i class="fa-solid fa-cloud-upload-alt"></i> SALVAR</button>
+        <button class="btn-hist"     onclick="abrirHist()">    <i class="fa-solid fa-clock-rotate-left"></i> HISTÓRICO</button>
+        <button class="btn-desenhos" onclick="buscarDesenhos()"><i class="fa-solid fa-image"></i> DESENHOS</button>
+        <button class="btn-pdf"      onclick="baixarPDF()">    <i class="fa-solid fa-file-pdf"></i> PDF</button>
+    </div>
+
+    <div id="saida">O plano de aula aparecerá aqui...</div>
+</div>
+
+<!-- Modal Histórico -->
+<div id="modal">
+    <div class="modal-inner">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Aulas</h2>
+            <button class="btn-fechar" onclick="document.getElementById('modal').style.display='none'">
+                <i class="fa-solid fa-xmark"></i> FECHAR
+            </button>
+        </div>
+        <div class="filtros-area">
+            <input type="text" id="fTema" placeholder="🔍 Buscar tema..." onkeyup="filtrar()" style="flex:1;">
+            <select id="fIdade" onchange="filtrar()">
+                <option value="">Todas as Idades</option>
+                <option value="Berçário (0-2 anos)">Berçário (0-2 anos)</option>
+                <option value="Maternal (3-4 anos)">Maternal (3-4 anos)</option>
+                <option value="Jardim (5-6 anos)">Jardim (5-6 anos)</option>
+                <option value="Primários (7-9 anos)">Primários (7-9 anos)</option>
+                <option value="Juniores (10-12 anos)">Juniores (10-12 anos)</option>
+            </select>
+        </div>
+        <div id="lista">Carregando dados da planilha...</div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+    const URL_BD = 'https://script.google.com/macros/s/AKfycbxt_25BKkUhde0f8Pt-Y4IKfDtJNxvD_3NbQYYN0I8H878pRngHmMvwvJ8KBUew-x4R/exec';
+
+    // ── Init ──
+    window.onload = function () {
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if (savedKey) {
+            document.getElementById('apiKeyInput').value = savedKey;
+            setApiStatus(true);
+        } else {
+            toggleConfig();
+        }
+    };
+
+    // ── API Panel ──
+    function toggleConfig() {
+        const body  = document.getElementById('config-conteudo');
+        const seta  = document.getElementById('config-seta');
+        const isOpen = body.classList.toggle('ativo');
+        seta.classList.toggle('open', isOpen);
+    }
+
+    function setApiStatus(configured) {
+        const el = document.getElementById('api-status-text');
+        el.textContent  = configured ? '✓ Chave configurada' : 'Não configurada';
+        el.className    = 'api-status' + (configured ? ' ok' : '');
+    }
+
+    function salvarApiKey() {
+        const key = document.getElementById('apiKeyInput').value.trim();
+        if (!key) { toast('⚠️ Digite uma chave válida!', '#c0392b'); return; }
+        localStorage.setItem('gemini_api_key', key);
+        setApiStatus(true);
+        toast('✓ Chave API salva com sucesso!', '#2e7d32');
+        toggleConfig();
+    }
+
+    function toggleVisibilidade() {
+        const input = document.getElementById('apiKeyInput');
+        const icon  = document.getElementById('vis-icon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fa-solid fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fa-solid fa-eye';
+        }
+    }
+
+    // ── Toast ──
+    function toast(msg, color = '#2e7d32') {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.style.background = color;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // ── Markdown → HTML ──
+    function converterMarkdownParaHtml(texto) {
+        return texto
+            .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+            .replace(/\*\* (.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\* (.*?)\n/g, '<li>$1</li>')
+            .replace(/\n/g, '<br>');
+    }
+
+    // ── Gerar Aula ──
+    async function gerarAula() {
+        const KEY = localStorage.getItem('gemini_api_key');
+        if (!KEY) {
+            toast('⚠️ Configure sua chave API primeiro!', '#c0392b');
+            const body = document.getElementById('config-conteudo');
+            if (!body.classList.contains('ativo')) toggleConfig();
+            return;
+        }
+
+        const t = document.getElementById('tema').value;
+        const i = document.getElementById('idade').value;
+        if (!t) { toast('⚠️ Digite um tema para a aula!', '#e07b00'); return; }
+
+        document.getElementById('saida').innerHTML = "<i class='fa-spin fa-solid fa-spinner'></i> Criando plano pedagógico...";
+
+        const prompt = `Crie um plano de aula bíblica infantil sobre "${t}" para a faixa etária "${i}". Inclua de forma clara e estruturada: Objetivo, Quebra-gelo, História bíblica simplificada, Atividade prática e Versículo para decorar.`;
+
+        try {
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!resp.ok) {
+                const erroTxt = await resp.text();
+                throw new Error("Resposta da API: " + erroTxt);
+            }
+
+            const d = await resp.json();
+            const textoBruto = d.candidates[0].content.parts[0].text;
+            const textoFormatado = converterMarkdownParaHtml(textoBruto);
+
+            document.getElementById('saida').innerHTML = `<h3>TEMA: ${t}</h3><p><b>Idade:</b> ${i}</p><hr>${textoFormatado}`;
+        } catch (e) {
+            console.error(e);
+            toast('❌ Erro na IA. Verifique sua chave API.', '#c0392b');
+            document.getElementById('saida').innerHTML = "O plano de aula aparecerá aqui...";
+        }
+    }
+
+    // ── Salvar BD ──
+    async function salvarBD() {
+        const tema     = document.getElementById('tema').value;
+        const idade    = document.getElementById('idade').value;
+        const conteudo = document.getElementById('saida').innerHTML;
+        if (conteudo.length < 50) { toast('⚠️ Gere a aula primeiro!', '#e07b00'); return; }
+
+        fetch(URL_BD, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "create", tema, idade, conteudo }) });
+        toast('✓ Aula salva na planilha!');
+    }
+
+    // ── Histórico ──
+    async function abrirHist() {
+        document.getElementById('modal').style.display = 'block';
+        document.getElementById('lista').innerHTML = "<i class='fa-spin fa-solid fa-spinner'></i> Buscando aulas...";
+        try {
+            const resp = await fetch(URL_BD + "?action=read");
+            window.aulasBD = await resp.json();
+            renderizar(window.aulasBD);
+        } catch (e) {
+            document.getElementById('lista').innerHTML = "Erro ao carregar dados. Verifique a conexão.";
+        }
+    }
+
+    function renderizar(dados) {
+        if (!dados || dados.length === 0) {
+            document.getElementById('lista').innerHTML = "Nenhuma aula encontrada.";
+            return;
+        }
+        let html = "";
+        dados.slice().reverse().forEach(a => {
+            html += `<div class="item-aula">
+                <div><strong>${a.tema}</strong><br><small>Faixa: ${a.idade}</small></div>
+                <div style="display:flex;gap:8px;">
+                    <button style="background:var(--gold-main);color:#000;padding:8px 14px;font-size:12px;" onclick="ver('${a.id}')"><i class="fa-solid fa-eye"></i> ABRIR</button>
+                    <button style="background:#c0392b;padding:8px 12px;font-size:12px;" onclick="excluir('${a.id}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>`;
+        });
+        document.getElementById('lista').innerHTML = html;
+    }
+
+    function filtrar() {
+        const tema  = document.getElementById('fTema').value.toLowerCase();
+        const idade = document.getElementById('fIdade').value;
+        if (!window.aulasBD) return;
+        const filtrados = window.aulasBD.filter(a =>
+            a.tema.toLowerCase().includes(tema) && (idade === "" || a.idade === idade)
+        );
+        renderizar(filtrados);
+    }
+
+    async function excluir(id) {
+        if (!confirm("Excluir aula da planilha?")) return;
+        fetch(URL_BD, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", id }) });
+        toast('✓ Exclusão enviada!');
+        document.getElementById('modal').style.display = 'none';
+    }
+
+    function ver(id) {
+        const a = window.aulasBD.find(item => item.id === id);
+        document.getElementById('saida').innerHTML = a.conteudo;
+        document.getElementById('modal').style.display = 'none';
+        window.scrollTo(0, 0);
+    }
+
+    // ── PDF ──
+    function baixarPDF() {
+        html2pdf().set({ margin: 15, filename: 'Aula_Infantil.pdf' }).from(document.getElementById('saida')).save();
+    }
+
+    // ── Desenhos ──
+    function buscarDesenhos() {
+        const t = document.getElementById('tema').value;
+        if (!t) { toast('⚠️ Digite um tema primeiro!', '#e07b00'); return; }
+        const query = encodeURIComponent(`desenho bíblico infantil para colorir ${t}`);
+        window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+    }
+</script>
+</body>
+</html>
