@@ -670,8 +670,25 @@
     }
     // ── Desenhos ──
     function buscarDesenhos() {
-        const t = document.getElementById('tema').value;
-        if (!t) { toast('⚠️ Digite um tema primeiro!', '#e07b00'); return; }
+        let t = document.getElementById('tema').value.trim();
+
+        // Se o campo tema estiver vazio, tenta extrair o tema do conteúdo já gerado
+        if (!t) {
+            const saida = document.getElementById('saida');
+            const h3 = saida.querySelector('h3');
+            if (h3) {
+                // Remove prefixos como "TEMA: " e pega só o texto
+                t = h3.textContent.replace(/^tema[:\s]*/i, '').trim();
+            }
+            // Fallback: pega as primeiras palavras do texto do #saida
+            if (!t) {
+                t = saida.innerText.split('\n').find(l => l.trim().length > 3) || '';
+                t = t.substring(0, 60).trim();
+            }
+        }
+
+        if (!t) { toast('⚠️ Abra uma lição ou digite um tema primeiro!', '#e07b00'); return; }
+
         const query = encodeURIComponent(`desenho bíblico infantil para colorir ${t}`);
         window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
     }
