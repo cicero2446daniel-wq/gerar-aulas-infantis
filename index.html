@@ -348,6 +348,35 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        /* ── CONFIGURAÇÃO DE IMPRESSÃO / GERAÇÃO DE PDF ── */
+        @media print {
+            #saida {
+                background: #ffffff !important;
+                color: #111111 !important;
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+                padding: 0 !important;
+                border: none !important;
+            }
+            #saida h3 {
+                color: #a67c37 !important;
+                font-size: 18px !important;
+                font-weight: bold !important;
+                margin-top: 10px !important;
+                margin-bottom: 5px !important;
+                border-bottom: 2px solid #a67c37 !important;
+                padding-bottom: 4px !important;
+            }
+            #saida p, #saida li, #saida b, #saida strong {
+                color: #111111 !important;
+                font-size: 14px !important;
+            }
+            #saida hr {
+                border-color: #dddddd !important;
+                margin: 15px 0 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -404,11 +433,11 @@
     </select>
 
     <div class="btns">
-        <button class="btn-gerar"    onclick="gerarAula()">    <i class="fa-solid fa-magic"></i> GERAR AULA</button>
+        <button class="btn-gerar"    onclick="generarAula()">    <i class="fa-solid fa-magic"></i> GERAR AULA</button>
         <button class="btn-bd"       onclick="salvarBD()">     <i class="fa-solid fa-cloud-upload-alt"></i> SALVAR</button>
         <button class="btn-hist"     onclick="abrirHist()">    <i class="fa-solid fa-clock-rotate-left"></i> HISTÓRICO</button>
-        <button class="btn-desenhos" onclick="buscarDesenhos()"><i class="fa-solid fa-image"></i> DESENHOS</button>
-        <button class="btn-pdf"      onclick="baixarPDF()">    <i class="fa-solid fa-file-pdf"></i> PDF</button>
+        <button style="background: #e07b00;" onclick="buscarDesenhos()"><i class="fa-solid fa-image"></i> DESENHOS</button>
+        <button style="background: #2e7d32;" onclick="baixarPDF()">    <i class="fa-solid fa-file-pdf"></i> PDF</button>
     </div>
 
     <div id="saida">O plano de aula aparecerá aqui...</div>
