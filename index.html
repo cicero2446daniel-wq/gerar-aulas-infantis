@@ -619,86 +619,98 @@
 
     // ── PDF ──
     function baixarPDF() {
-        const origem = document.getElementById('saida');
+        const conteudoHTML = document.getElementById('saida').innerHTML;
 
-        // 1. Clona profundamente o nó — nunca tocamos no original
-        const clone = origem.cloneNode(true);
+        // Monta um documento HTML completamente isolado, sem herdar NADA do app
+        const docLimpo = `
+        <html>
+        <head>
+        <meta charset="UTF-8">
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+                background: #ffffff !important;
+                color: #111111 !important;
+                font-family: Arial, Helvetica, sans-serif !important;
+                font-size: 14px !important;
+                line-height: 1.75 !important;
+            }
+            .conteudo {
+                background: #ffffff;
+                color: #111111;
+                padding: 10px;
+            }
+            h3 {
+                color: #1a3a5c !important;
+                font-size: 17px !important;
+                font-weight: 700 !important;
+                margin-top: 20px !important;
+                margin-bottom: 6px !important;
+                border-bottom: 2px solid #1a3a5c;
+                padding-bottom: 4px !important;
+            }
+            h4 {
+                color: #222222 !important;
+                font-size: 14px !important;
+                font-weight: 700 !important;
+                margin-top: 14px !important;
+                margin-bottom: 4px !important;
+            }
+            strong, b {
+                color: #000000 !important;
+                font-weight: 700 !important;
+            }
+            p {
+                color: #111111 !important;
+                margin-bottom: 8px !important;
+            }
+            li {
+                color: #111111 !important;
+                margin-bottom: 4px !important;
+                margin-left: 18px !important;
+            }
+            hr {
+                border: none !important;
+                border-top: 1px solid #cccccc !important;
+                margin: 14px 0 !important;
+            }
+            span {
+                color: #111111 !important;
+                background: transparent !important;
+            }
+            br { line-height: 1.75; }
+        </style>
+        </head>
+        <body>
+            <div class="conteudo">${conteudoHTML}</div>
+        </body>
+        </html>`;
 
-        // 2. Isola o clone: fora do viewport mas VISÍVEL para o html2canvas renderizar
-        Object.assign(clone.style, {
-            position:   'absolute',
-            top:        '-99999px',
-            left:       '-99999px',
-            zIndex:     '-9999',
-            visibility: 'visible',
-            opacity:    '1',
-            // ── Folha limpa ──────────────────────────────────────────
-            width:           '170mm',   // largura útil A4 com margem de 20mm cada lado
-            backgroundColor: '#ffffff',
-            color:           '#111111',
-            padding:         '0',
-            margin:          '0',
-            fontSize:        '14px',
-            fontFamily:      'Arial, Helvetica, sans-serif',
-            lineHeight:      '1.7',
-            // Zera qualquer borda/sombra herdada do tema escuro
-            border:          'none',
-            borderLeft:      'none',
-            boxShadow:       'none',
-            borderRadius:    '0',
-        });
+        // Cria um elemento div temporário, invisível, e injeta o documento limpo dentro
+        const container = document.createElement('div');
+        container.style.cssText = 'position:absolute;left:-9999px;top:0;width:794px;';
+        container.innerHTML = docLimpo;
+        document.body.appendChild(container);
 
-        // 3. Sobrescreve todos os filhos com estilos inline (quebra a cascata do tema)
-        const regras = [
-            // Seletores → objeto de estilos a aplicar
-            ['h3',       { color: '#1a3a5c', fontSize: '18px', fontWeight: '700',
-                           marginTop: '18px', marginBottom: '6px', borderBottom: '2px solid #1a3a5c',
-                           paddingBottom: '4px' }],
-            ['h4',       { color: '#2c2c2c', fontSize: '15px', fontWeight: '700',
-                           marginTop: '14px', marginBottom: '4px' }],
-            ['strong',   { color: '#000000' }],
-            ['p',        { color: '#111111', marginBottom: '8px' }],
-            ['li',       { color: '#111111', marginBottom: '4px' }],
-            ['hr',       { borderColor: '#cccccc', borderStyle: 'solid',
-                           borderWidth: '1px 0 0 0', margin: '14px 0' }],
-            ['b',        { color: '#000000' }],
-            ['span',     { color: '#111111', backgroundColor: 'transparent' }],
-        ];
+        const alvo = container.querySelector('.conteudo');
 
-        regras.forEach(([seletor, estilos]) => {
-            clone.querySelectorAll(seletor).forEach(el => {
-                Object.assign(el.style, estilos);
-                // Garante que nenhum fundo escuro sobreviva
-                if (!['hr'].includes(seletor)) {
-                    el.style.backgroundColor = 'transparent';
-                }
-            });
-        });
-
-        // 4. Injeta no body só para o html2canvas conseguir medir o layout
-        document.body.appendChild(clone);
-
-        // 5. Gera o PDF a partir do clone — o original permanece intocado na tela
         html2pdf()
             .set({
-                margin:     [20, 20, 20, 20],   // mm: top, right, bottom, left
-                filename:   'Aula_Infantil.pdf',
-                image:      { type: 'jpeg', quality: 0.98 },
+                margin:      [15, 15, 15, 15],
+                filename:    'Aula_Infantil.pdf',
+                image:       { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
                     scale:           2,
                     useCORS:         true,
-                    backgroundColor: '#ffffff',   // força fundo branco no canvas
+                    backgroundColor: '#ffffff',
                     logging:         false,
-                    removeContainer: true,
+                    windowWidth:     794,
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             })
-            .from(clone)
+            .from(alvo)
             .save()
-            .finally(() => {
-                // 6. Remove o clone — o app na tela nunca foi alterado
-                clone.remove();
-            });
+            .finally(() => container.remove());
     }
 
     // ── Desenhos ──
