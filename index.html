@@ -621,84 +621,56 @@
     function baixarPDF() {
         const conteudoHTML = document.getElementById('saida').innerHTML;
 
-        // Monta um documento HTML completamente isolado, sem herdar NADA do app
-        const docLimpo = `
-        <html>
-        <head>
-        <meta charset="UTF-8">
-        <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body {
-                background: #ffffff !important;
-                color: #111111 !important;
-                font-family: Arial, Helvetica, sans-serif !important;
-                font-size: 14px !important;
-                line-height: 1.75 !important;
-            }
-            .conteudo {
-                background: #ffffff;
-                color: #111111;
-                padding: 10px;
-            }
-            h3 {
-                color: #1a3a5c !important;
-                font-size: 17px !important;
-                font-weight: 700 !important;
-                margin-top: 20px !important;
-                margin-bottom: 6px !important;
-                border-bottom: 2px solid #1a3a5c;
-                padding-bottom: 4px !important;
-            }
-            h4 {
-                color: #222222 !important;
-                font-size: 14px !important;
-                font-weight: 700 !important;
-                margin-top: 14px !important;
-                margin-bottom: 4px !important;
-            }
-            strong, b {
-                color: #000000 !important;
-                font-weight: 700 !important;
-            }
-            p {
-                color: #111111 !important;
-                margin-bottom: 8px !important;
-            }
-            li {
-                color: #111111 !important;
-                margin-bottom: 4px !important;
-                margin-left: 18px !important;
-            }
-            hr {
-                border: none !important;
-                border-top: 1px solid #cccccc !important;
-                margin: 14px 0 !important;
-            }
-            span {
-                color: #111111 !important;
-                background: transparent !important;
-            }
-            br { line-height: 1.75; }
-        </style>
-        </head>
-        <body>
-            <div class="conteudo">${conteudoHTML}</div>
-        </body>
-        </html>`;
+        // A4 a 96dpi = 794px. Margens 15mm cada lado = ~56px.
+        // Largura util do conteudo = 794 - 56 - 56 = 682px
+        const LARGURA = 682;
 
-        // Cria um iframe oculto — completamente isolado do CSS do app
+        const docLimpo = `<html><head><meta charset="UTF-8"><style>
+            *{box-sizing:border-box;margin:0;padding:0;}
+            html,body{
+                width:${LARGURA}px!important;
+                max-width:${LARGURA}px!important;
+                overflow-x:hidden!important;
+                background:#ffffff!important;
+                color:#111111!important;
+                font-family:Arial,Helvetica,sans-serif!important;
+                font-size:13px!important;
+                line-height:1.75!important;
+                word-wrap:break-word!important;
+                overflow-wrap:break-word!important;
+            }
+            .conteudo{
+                width:${LARGURA}px!important;
+                max-width:${LARGURA}px!important;
+                background:#ffffff;
+                color:#111111;
+                padding:0;
+                overflow:hidden;
+                word-wrap:break-word;
+                overflow-wrap:break-word;
+            }
+            h3{color:#1a3a5c!important;font-size:16px!important;font-weight:700!important;
+               margin-top:20px!important;margin-bottom:6px!important;
+               border-bottom:2px solid #1a3a5c!important;padding-bottom:4px!important;width:100%!important;}
+            h4{color:#222222!important;font-size:13px!important;font-weight:700!important;
+               margin-top:14px!important;margin-bottom:4px!important;}
+            strong,b{color:#000000!important;font-weight:700!important;}
+            p{color:#111111!important;margin-bottom:8px!important;}
+            li{color:#111111!important;margin-bottom:4px!important;margin-left:18px!important;}
+            hr{border:none!important;border-top:1px solid #cccccc!important;margin:14px 0!important;width:100%!important;}
+            span{color:#111111!important;background:transparent!important;}
+        </style></head><body><div class="conteudo">${conteudoHTML}</div></body></html>`;
+
         const iframe = document.createElement('iframe');
-        iframe.style.cssText = 'position:fixed;top:0;left:0;width:794px;height:1123px;opacity:0;pointer-events:none;border:none;z-index:-1;';
+        iframe.style.cssText = `position:fixed;top:0;left:0;width:${LARGURA}px;height:1123px;opacity:0;pointer-events:none;border:none;z-index:-1;`;
         document.body.appendChild(iframe);
 
-        // Escreve o documento limpo dentro do iframe
         iframe.contentDocument.open();
         iframe.contentDocument.write(docLimpo);
         iframe.contentDocument.close();
 
         const alvo = iframe.contentDocument.querySelector('.conteudo');
 
-        // Aguarda o iframe renderizar antes de capturar
         setTimeout(() => {
             html2pdf()
                 .set({
@@ -710,11 +682,9 @@
                         useCORS:         true,
                         backgroundColor: '#ffffff',
                         logging:         false,
-                        windowWidth:     794,
+                        windowWidth:     LARGURA,
                         scrollX:         0,
                         scrollY:         0,
-                        x:               0,
-                        y:               0,
                     },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 })
