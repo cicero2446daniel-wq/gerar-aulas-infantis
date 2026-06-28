@@ -348,35 +348,6 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
-
-        /* ── CONFIGURAÇÃO DE IMPRESSÃO / GERAÇÃO DE PDF ── */
-        @media print {
-            #saida {
-                background: #ffffff !important;
-                color: #111111 !important;
-                font-size: 14px !important;
-                line-height: 1.6 !important;
-                padding: 0 !important;
-                border: none !important;
-            }
-            #saida h3 {
-                color: #a67c37 !important;
-                font-size: 18px !important;
-                font-weight: bold !important;
-                margin-top: 10px !important;
-                margin-bottom: 5px !important;
-                border-bottom: 2px solid #a67c37 !important;
-                padding-bottom: 4px !important;
-            }
-            #saida p, #saida li, #saida b, #saida strong {
-                color: #111111 !important;
-                font-size: 14px !important;
-            }
-            #saida hr {
-                border-color: #dddddd !important;
-                margin: 15px 0 !important;
-            }
-        }
     </style>
 </head>
 <body>
@@ -433,11 +404,11 @@
     </select>
 
     <div class="btns">
-        <button class="btn-gerar"    onclick="generarAula()">    <i class="fa-solid fa-magic"></i> GERAR AULA</button>
+        <button class="btn-gerar"    onclick="gerarAula()">    <i class="fa-solid fa-magic"></i> GERAR AULA</button>
         <button class="btn-bd"       onclick="salvarBD()">     <i class="fa-solid fa-cloud-upload-alt"></i> SALVAR</button>
         <button class="btn-hist"     onclick="abrirHist()">    <i class="fa-solid fa-clock-rotate-left"></i> HISTÓRICO</button>
-        <button style="background: #e07b00;" onclick="buscarDesenhos()"><i class="fa-solid fa-image"></i> DESENHOS</button>
-        <button style="background: #2e7d32;" onclick="baixarPDF()">    <i class="fa-solid fa-file-pdf"></i> PDF</button>
+        <button class="btn-desenhos" onclick="buscarDesenhos()"><i class="fa-solid fa-image"></i> DESENHOS</button>
+        <button class="btn-pdf"      onclick="baixarPDF()">    <i class="fa-solid fa-file-pdf"></i> PDF</button>
     </div>
 
     <div id="saida">O plano de aula aparecerá aqui...</div>
@@ -648,7 +619,85 @@
 
     // ── PDF ──
     function baixarPDF() {
-        html2pdf().set({ margin: 15, filename: 'Aula_Infantil.pdf' }).from(document.getElementById('saida')).save();
+        const origem = document.getElementById('saida');
+
+        // 1. Clona profundamente o nó — nunca tocamos no original
+        const clone = origem.cloneNode(true);
+
+        // 2. Isola o clone: fora do viewport, fora do fluxo, invisível ao usuário
+        Object.assign(clone.style, {
+            position:   'fixed',
+            top:        '-99999px',
+            left:       '-99999px',
+            zIndex:     '-1',
+            visibility: 'hidden',
+            // ── Folha limpa ──────────────────────────────────────────
+            width:           '170mm',   // largura útil A4 com margem de 20mm cada lado
+            backgroundColor: '#ffffff',
+            color:           '#111111',
+            padding:         '0',
+            margin:          '0',
+            fontSize:        '14px',
+            fontFamily:      'Arial, Helvetica, sans-serif',
+            lineHeight:      '1.7',
+            // Zera qualquer borda/sombra herdada do tema escuro
+            border:          'none',
+            borderLeft:      'none',
+            boxShadow:       'none',
+            borderRadius:    '0',
+        });
+
+        // 3. Sobrescreve todos os filhos com estilos inline (quebra a cascata do tema)
+        const regras = [
+            // Seletores → objeto de estilos a aplicar
+            ['h3',       { color: '#1a3a5c', fontSize: '18px', fontWeight: '700',
+                           marginTop: '18px', marginBottom: '6px', borderBottom: '2px solid #1a3a5c',
+                           paddingBottom: '4px' }],
+            ['h4',       { color: '#2c2c2c', fontSize: '15px', fontWeight: '700',
+                           marginTop: '14px', marginBottom: '4px' }],
+            ['strong',   { color: '#000000' }],
+            ['p',        { color: '#111111', marginBottom: '8px' }],
+            ['li',       { color: '#111111', marginBottom: '4px' }],
+            ['hr',       { borderColor: '#cccccc', borderStyle: 'solid',
+                           borderWidth: '1px 0 0 0', margin: '14px 0' }],
+            ['b',        { color: '#000000' }],
+            ['span',     { color: '#111111', backgroundColor: 'transparent' }],
+        ];
+
+        regras.forEach(([seletor, estilos]) => {
+            clone.querySelectorAll(seletor).forEach(el => {
+                Object.assign(el.style, estilos);
+                // Garante que nenhum fundo escuro sobreviva
+                if (!['hr'].includes(seletor)) {
+                    el.style.backgroundColor = 'transparent';
+                }
+            });
+        });
+
+        // 4. Injeta no body só para o html2canvas conseguir medir o layout
+        document.body.appendChild(clone);
+
+        // 5. Gera o PDF a partir do clone — o original permanece intocado na tela
+        html2pdf()
+            .set({
+                margin:     [20, 20, 20, 20],   // mm: top, right, bottom, left
+                filename:   'Aula_Infantil.pdf',
+                image:      { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale:           2,
+                    useCORS:         true,
+                    backgroundColor: '#ffffff',   // força fundo branco no canvas
+                    logging:         false,
+                    removeContainer: true,
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            })
+            .from(clone)
+            .save()
+            .finally(() => {
+                // 6. Remove o clone — o app na tela nunca foi alterado
+                clone.remove();
+            });
     }
 
     // ── Desenhos ──
