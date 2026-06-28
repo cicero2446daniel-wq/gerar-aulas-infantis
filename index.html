@@ -686,31 +686,42 @@
         </body>
         </html>`;
 
-        // Cria um elemento div temporário, invisível, e injeta o documento limpo dentro
-        const container = document.createElement('div');
-        container.style.cssText = 'position:absolute;left:-9999px;top:0;width:794px;';
-        container.innerHTML = docLimpo;
-        document.body.appendChild(container);
+        // Cria um iframe oculto — completamente isolado do CSS do app
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;top:0;left:0;width:794px;height:1123px;opacity:0;pointer-events:none;border:none;z-index:-1;';
+        document.body.appendChild(iframe);
 
-        const alvo = container.querySelector('.conteudo');
+        // Escreve o documento limpo dentro do iframe
+        iframe.contentDocument.open();
+        iframe.contentDocument.write(docLimpo);
+        iframe.contentDocument.close();
 
-        html2pdf()
-            .set({
-                margin:      [15, 15, 15, 15],
-                filename:    'Aula_Infantil.pdf',
-                image:       { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale:           2,
-                    useCORS:         true,
-                    backgroundColor: '#ffffff',
-                    logging:         false,
-                    windowWidth:     794,
-                },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            })
-            .from(alvo)
-            .save()
-            .finally(() => container.remove());
+        const alvo = iframe.contentDocument.querySelector('.conteudo');
+
+        // Aguarda o iframe renderizar antes de capturar
+        setTimeout(() => {
+            html2pdf()
+                .set({
+                    margin:      [15, 15, 15, 15],
+                    filename:    'Aula_Infantil.pdf',
+                    image:       { type: 'jpeg', quality: 0.98 },
+                    html2canvas: {
+                        scale:           2,
+                        useCORS:         true,
+                        backgroundColor: '#ffffff',
+                        logging:         false,
+                        windowWidth:     794,
+                        scrollX:         0,
+                        scrollY:         0,
+                        x:               0,
+                        y:               0,
+                    },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                })
+                .from(alvo)
+                .save()
+                .finally(() => iframe.remove());
+        }, 300);
     }
 
     // ── Desenhos ──
