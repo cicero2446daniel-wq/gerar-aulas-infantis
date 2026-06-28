@@ -624,13 +624,14 @@
         // 1. Clona profundamente o nó — nunca tocamos no original
         const clone = origem.cloneNode(true);
 
-        // 2. Isola o clone: fora do viewport, fora do fluxo, invisível ao usuário
+        // 2. Isola o clone: fora do viewport mas VISÍVEL para o html2canvas renderizar
         Object.assign(clone.style, {
-            position:   'fixed',
+            position:   'absolute',
             top:        '-99999px',
             left:       '-99999px',
-            zIndex:     '-1',
-            visibility: 'hidden',
+            zIndex:     '-9999',
+            visibility: 'visible',
+            opacity:    '1',
             // ── Folha limpa ──────────────────────────────────────────
             width:           '170mm',   // largura útil A4 com margem de 20mm cada lado
             backgroundColor: '#ffffff',
