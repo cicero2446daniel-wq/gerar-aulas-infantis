@@ -408,6 +408,7 @@
         <button class="btn-bd"       onclick="salvarBD()">     <i class="fa-solid fa-cloud-upload-alt"></i> SALVAR</button>
         <button class="btn-hist"     onclick="abrirHist()">    <i class="fa-solid fa-clock-rotate-left"></i> HISTÓRICO</button>
         <button class="btn-desenhos" onclick="buscarDesenhos()"><i class="fa-solid fa-image"></i> DESENHOS</button>
+        <button style="background:#9c27b0" onclick="gerarDesenho()"><i class="fa-solid fa-paint-brush"></i> GERAR DESENHO</button>
         <button class="btn-pdf"      onclick="baixarPDF()">    <i class="fa-solid fa-file-pdf"></i> PDF</button>
     </div>
 
@@ -438,8 +439,24 @@
     </div>
 </div>
 
-<!-- Toast -->
-<div id="toast"></div>
+<!-- Modal Desenho -->
+<div id="modal-desenho" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:100;padding:20px;overflow-y:auto;">
+    <div style="max-width:600px;margin:0 auto;text-align:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h2 style="color:#c5a059;margin:0;font-size:18px;"><i class="fa-solid fa-paint-brush"></i> Desenho para Colorir</h2>
+            <button onclick="fecharModalDesenho()" style="background:#c0392b;padding:8px 16px;border-radius:8px;font-size:13px;"><i class="fa-solid fa-xmark"></i> FECHAR</button>
+        </div>
+        <div id="desenho-status" style="color:#aaa;margin-bottom:12px;font-size:14px;"></div>
+        <div id="desenho-container" style="background:#fff;border-radius:12px;padding:16px;display:none;">
+            <img id="desenho-img" src="" alt="Desenho para colorir" style="max-width:100%;border-radius:8px;">
+        </div>
+        <button id="btn-baixar-desenho" onclick="baixarDesenhoPDF()" style="display:none;margin-top:16px;background:#2e7d32;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:700;">
+            <i class="fa-solid fa-file-pdf"></i> BAIXAR COMO PDF
+        </button>
+    </div>
+</div>
+
+
 
 <script>
     const URL_BD = 'https://script.google.com/macros/s/AKfycbxt_25BKkUhde0f8Pt-Y4IKfDtJNxvD_3NbQYYN0I8H878pRngHmMvwvJ8KBUew-x4R/exec';
@@ -668,7 +685,116 @@
             .from(docLimpo, 'string')
             .save();
     }
-    // ── Desenhos ──
+
+    // ── Gerar Desenho ──
+    async function gerarDesenho() {
+        const KEY = localStorage.getItem('gemini_api_key');
+        if (!KEY) {
+            toast('⚠️ Configure sua chave API primeiro!', '#c0392b');
+            const body = document.getElementById('config-conteudo');
+            if (!body.classList.contains('ativo')) toggleConfig();
+            return;
+        }
+
+        // Resolve o tema: campo #tema ou conteúdo já gerado no #saida
+        let tema = document.getElementById('tema').value.trim();
+        if (!tema) {
+            const saida = document.getElementById('saida');
+            const h3 = saida.querySelector('h3');
+            if (h3) {
+                tema = h3.textContent.replace(/^tema[:\s]*/i, '').trim();
+            }
+            if (!tema) {
+                tema = saida.innerText.split('\n').find(l => l.trim().length > 3) || '';
+                tema = tema.substring(0, 80).trim();
+            }
+        }
+        if (!tema) { toast('⚠️ Gere ou abra uma aula primeiro!', '#e07b00'); return; }
+
+        // Abre o modal e exibe loading
+        document.getElementById('modal-desenho').style.display = 'block';
+        document.getElementById('desenho-status').innerHTML = "<i class='fa-spin fa-solid fa-spinner'></i> Gerando desenho para colorir...";
+        document.getElementById('desenho-container').style.display = 'none';
+        document.getElementById('btn-baixar-desenho').style.display = 'none';
+
+        const prompt = `Crie um desenho de linha (line art / outline) simples em preto e branco, sem preenchimento de cor, estilo para criança colorir, sobre o tema bíblico: "${tema}". O desenho deve ser adequado para crianças, com traços grossos e claros, fundo totalmente branco, sem texto.`;
+
+        try {
+            const resp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${KEY}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+                    })
+                }
+            );
+
+            if (!resp.ok) {
+                const err = await resp.text();
+                throw new Error(err);
+            }
+
+            const data = await resp.json();
+
+            // Procura a parte com dados de imagem na resposta
+            let imagemBase64 = null;
+            let mimeType = 'image/png';
+            const parts = data?.candidates?.[0]?.content?.parts || [];
+            for (const part of parts) {
+                if (part.inlineData) {
+                    imagemBase64 = part.inlineData.data;
+                    mimeType = part.inlineData.mimeType || 'image/png';
+                    break;
+                }
+            }
+
+            if (!imagemBase64) throw new Error('Nenhuma imagem retornada pela API.');
+
+            // Exibe a imagem no modal
+            const src = `data:${mimeType};base64,${imagemBase64}`;
+            document.getElementById('desenho-img').src = src;
+            document.getElementById('desenho-container').style.display = 'block';
+            document.getElementById('btn-baixar-desenho').style.display = 'inline-block';
+            document.getElementById('desenho-status').textContent = `✓ Desenho gerado para o tema: "${tema}"`;
+
+            // Guarda o src para uso no download
+            window._desenhoAtualSrc = src;
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('desenho-status').innerHTML =
+                '❌ Erro ao gerar o desenho. Verifique sua chave API e tente novamente.';
+        }
+    }
+
+    function fecharModalDesenho() {
+        document.getElementById('modal-desenho').style.display = 'none';
+    }
+
+    function baixarDesenhoPDF() {
+        const src = window._desenhoAtualSrc;
+        if (!src) return;
+
+        const htmlImg = `
+            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#ffffff;margin:0;padding:0;">
+                <img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;">
+            </div>`;
+
+        html2pdf()
+            .set({
+                margin:      0,
+                filename:    'Desenho_Para_Colorir.pdf',
+                image:       { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            })
+            .from(htmlImg, 'string')
+            .save();
+    }
+
     function buscarDesenhos() {
         let t = document.getElementById('tema').value.trim();
 
