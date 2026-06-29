@@ -734,7 +734,7 @@
 
             if (!resp.ok) {
                 const err = await resp.text();
-                throw new Error(err);
+                throw new Error('HTTP ' + resp.status + ': ' + err);
             }
 
             const data = await resp.json();
@@ -764,9 +764,9 @@
             window._desenhoAtualSrc = src;
 
         } catch (e) {
-            console.error(e);
+            console.error('ERRO GERAR DESENHO:', e);
             document.getElementById('desenho-status').innerHTML =
-                '❌ Erro ao gerar o desenho. Verifique sua chave API e tente novamente.';
+                '❌ Erro: ' + e.message;
         }
     }
 
