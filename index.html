@@ -701,9 +701,7 @@
         if (!tema) {
             const saida = document.getElementById('saida');
             const h3 = saida.querySelector('h3');
-            if (h3) {
-                tema = h3.textContent.replace(/^tema[:\s]*/i, '').trim();
-            }
+            if (h3) tema = h3.textContent.replace(/^tema[:\s]*/i, '').trim();
             if (!tema) {
                 tema = saida.innerText.split('\n').find(l => l.trim().length > 3) || '';
                 tema = tema.substring(0, 80).trim();
@@ -711,7 +709,6 @@
         }
         if (!tema) { toast('⚠️ Gere ou abra uma aula primeiro!', '#e07b00'); return; }
 
-        // Abre o modal e exibe loading
         document.getElementById('modal-desenho').style.display = 'block';
         document.getElementById('desenho-status').innerHTML = "<i class='fa-spin fa-solid fa-spinner'></i> Gerando desenho para colorir...";
         document.getElementById('desenho-container').style.display = 'none';
@@ -719,54 +716,73 @@
 
         const prompt = `Crie um desenho de linha (line art / outline) simples em preto e branco, sem preenchimento de cor, estilo para criança colorir, sobre o tema bíblico: "${tema}". O desenho deve ser adequado para crianças, com traços grossos e claros, fundo totalmente branco, sem texto.`;
 
+        // Tenta o modelo de geração de imagem nativa
         try {
             const resp = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-image:generateContent?key=${KEY}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${KEY}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+                        generationConfig: { responseModalities: ['IMAGE'] }
                     })
                 }
             );
 
-            if (!resp.ok) {
-                const err = await resp.text();
-                throw new Error('HTTP ' + resp.status + ': ' + err);
-            }
-
             const data = await resp.json();
 
-            // Procura a parte com dados de imagem na resposta
-            let imagemBase64 = null;
-            let mimeType = 'image/png';
+            // Verifica se retornou imagem
             const parts = data?.candidates?.[0]?.content?.parts || [];
-            for (const part of parts) {
-                if (part.inlineData) {
-                    imagemBase64 = part.inlineData.data;
-                    mimeType = part.inlineData.mimeType || 'image/png';
-                    break;
-                }
+            const imgPart = parts.find(p => p.inlineData);
+
+            if (!resp.ok || !imgPart) {
+                // Loga o erro real e cai no fallback
+                console.warn('Modelo de imagem indisponível, usando fallback:', data);
+                throw new Error('fallback');
             }
 
-            if (!imagemBase64) throw new Error('Nenhuma imagem retornada pela API.');
-
-            // Exibe a imagem no modal
-            const src = `data:${mimeType};base64,${imagemBase64}`;
+            const src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
             document.getElementById('desenho-img').src = src;
             document.getElementById('desenho-container').style.display = 'block';
             document.getElementById('btn-baixar-desenho').style.display = 'inline-block';
-            document.getElementById('desenho-status').textContent = `✓ Desenho gerado para o tema: "${tema}"`;
-
-            // Guarda o src para uso no download
+            document.getElementById('desenho-status').textContent = `✓ Desenho gerado: "${tema}"`;
             window._desenhoAtualSrc = src;
 
         } catch (e) {
-            console.error('ERRO GERAR DESENHO:', e);
+            // Fallback: abre busca no Google com termo otimizado gerado pela IA
+            console.warn('Fallback ativado:', e.message);
             document.getElementById('desenho-status').innerHTML =
-                '❌ Erro: ' + e.message + '<br><small style="color:#aaa">Veja o console para detalhes.</small>';
+                "<i class='fa-spin fa-solid fa-spinner'></i> Gerando sugestão de busca...";
+
+            try {
+                const respTexto = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text:
+                                `Sugira em até 6 palavras em português um termo de busca para encontrar um desenho infantil para colorir sobre: "${tema}". Responda APENAS com o termo, sem explicações.`
+                            }] }]
+                        })
+                    }
+                );
+                const dt = await respTexto.json();
+                const termo = dt?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || tema;
+                const query = encodeURIComponent(`desenho para colorir infantil bíblico ${termo}`);
+                document.getElementById('desenho-status').innerHTML =
+                    `⚠️ Geração de imagem não disponível para esta chave.<br>
+                     <small style="color:#aaa">Abrindo busca alternativa para: <b>${termo}</b></small>`;
+                setTimeout(() => {
+                    window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+                }, 1200);
+            } catch (e2) {
+                const query = encodeURIComponent(`desenho para colorir infantil bíblico ${tema}`);
+                document.getElementById('desenho-status').innerHTML =
+                    `⚠️ Geração de imagem não disponível.<br><small style="color:#aaa">Abrindo busca no Google Imagens...</small>`;
+                setTimeout(() => window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank'), 1200);
+            }
         }
     }
 
