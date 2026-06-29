@@ -688,14 +688,6 @@
 
     // ── Gerar Desenho ──
     async function gerarDesenho() {
-        const KEY = localStorage.getItem('gemini_api_key');
-        if (!KEY) {
-            toast('⚠️ Configure sua chave API primeiro!', '#c0392b');
-            const body = document.getElementById('config-conteudo');
-            if (!body.classList.contains('ativo')) toggleConfig();
-            return;
-        }
-
         // Resolve o tema: campo #tema ou conteúdo já gerado no #saida
         let tema = document.getElementById('tema').value.trim();
         if (!tema) {
@@ -714,35 +706,29 @@
         document.getElementById('desenho-container').style.display = 'none';
         document.getElementById('btn-baixar-desenho').style.display = 'none';
 
-        const prompt = `Crie um desenho de linha (line art / outline) simples em preto e branco, sem preenchimento de cor, estilo para criança colorir, sobre o tema bíblico: "${tema}". O desenho deve ser adequado para crianças, com traços grossos e claros, fundo totalmente branco, sem texto.`;
+        // Pollinations.ai — gratuito, sem chave, gera via URL
+        const promptImg = encodeURIComponent(
+            `children coloring page, black and white line art, thick outlines, no fill, white background, biblical theme: ${tema}, simple drawing for kids to color, no text, no shading`
+        );
+        const seed = Math.floor(Math.random() * 99999);
+        const url = `https://image.pollinations.ai/prompt/${promptImg}?width=800&height=1000&seed=${seed}&nologo=true&model=flux`;
 
-        // Tenta o modelo de geração de imagem nativa
         try {
-            const resp = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${KEY}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { responseModalities: ['IMAGE'] }
-                    })
-                }
-            );
+            // Carrega a imagem como blob para converter em base64 (necessário para o PDF)
+            document.getElementById('desenho-status').innerHTML =
+                "<i class='fa-spin fa-solid fa-spinner'></i> Aguarde, renderizando o desenho...";
 
-            const data = await resp.json();
+            const respImg = await fetch(url);
+            if (!respImg.ok) throw new Error('Falha ao buscar imagem: ' + respImg.status);
 
-            // Verifica se retornou imagem
-            const parts = data?.candidates?.[0]?.content?.parts || [];
-            const imgPart = parts.find(p => p.inlineData);
+            const blob = await respImg.blob();
+            const src = await new Promise((res, rej) => {
+                const reader = new FileReader();
+                reader.onload = () => res(reader.result);
+                reader.onerror = rej;
+                reader.readAsDataURL(blob);
+            });
 
-            if (!resp.ok || !imgPart) {
-                // Loga o erro real e cai no fallback
-                console.warn('Modelo de imagem indisponível, usando fallback:', data);
-                throw new Error('fallback');
-            }
-
-            const src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
             document.getElementById('desenho-img').src = src;
             document.getElementById('desenho-container').style.display = 'block';
             document.getElementById('btn-baixar-desenho').style.display = 'inline-block';
@@ -750,39 +736,10 @@
             window._desenhoAtualSrc = src;
 
         } catch (e) {
-            // Fallback: abre busca no Google com termo otimizado gerado pela IA
-            console.warn('Fallback ativado:', e.message);
+            console.error('Erro gerarDesenho:', e);
             document.getElementById('desenho-status').innerHTML =
-                "<i class='fa-spin fa-solid fa-spinner'></i> Gerando sugestão de busca...";
-
-            try {
-                const respTexto = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${KEY}`,
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text:
-                                `Sugira em até 6 palavras em português um termo de busca para encontrar um desenho infantil para colorir sobre: "${tema}". Responda APENAS com o termo, sem explicações.`
-                            }] }]
-                        })
-                    }
-                );
-                const dt = await respTexto.json();
-                const termo = dt?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || tema;
-                const query = encodeURIComponent(`desenho para colorir infantil bíblico ${termo}`);
-                document.getElementById('desenho-status').innerHTML =
-                    `⚠️ Geração de imagem não disponível para esta chave.<br>
-                     <small style="color:#aaa">Abrindo busca alternativa para: <b>${termo}</b></small>`;
-                setTimeout(() => {
-                    window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
-                }, 1200);
-            } catch (e2) {
-                const query = encodeURIComponent(`desenho para colorir infantil bíblico ${tema}`);
-                document.getElementById('desenho-status').innerHTML =
-                    `⚠️ Geração de imagem não disponível.<br><small style="color:#aaa">Abrindo busca no Google Imagens...</small>`;
-                setTimeout(() => window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank'), 1200);
-            }
+                `❌ Não foi possível gerar o desenho.<br>
+                 <small style="color:#aaa">${e.message}</small>`;
         }
     }
 
